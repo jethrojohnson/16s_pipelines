@@ -1,0 +1,62 @@
+################################################################
+#
+#
+# Pipeline pipeline_prevotella.py configuration file for sphinxreport
+#
+# This pipeline.ini file lists some configuration options that you might 
+# want a user to set automatically.
+#
+# Add pipeline specific options into separate sections
+#
+################################################################
+## general options
+[general]
+
+cluster_queue_manager=torque
+
+# directory for cgat scripts 
+scriptsdir=/home/johnsj/devel/cgat/cgat/scripts
+
+# essential cluster options
+mem=1gb
+
+walltime=04:00:00
+
+copy_environment=1
+
+database=csvdb
+
+########################################################################
+## location of shared tempdir
+[location]
+# location of the assembly_summary.txt file containing genome assembly details
+assembly_summary=ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/assembly_summary.txt
+
+[search]
+
+regex=16S rRNA
+
+[slop]
+
+upstream=200
+
+downstream=2000
+
+[filter]
+
+min_length=3400
+
+max_length=3800
+
+# directory containing the nhmmscan database
+nhmmscan=/projects/johnsj/devbox/20170801_extended16S_database/
+
+[muscle]
+
+run_time=72
+
+cluster_options=-l mem=100gb,walltime=72:00:00,nodes=1:ppn=1
+
+[entropy]
+
+base=GCF_000174075.1_ASM17407v1
