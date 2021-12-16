@@ -25,6 +25,7 @@ import os,sys,re
 import sqlite3
 import pandas as pd
 import wget
+import shutil
 
 import rpy2
 import rpy2.robjects as robjects
@@ -100,6 +101,8 @@ def fetchAccessions(infile, outfile):
     
     infile = P.snip(infile[0], '.load')
     outf = IOTools.open_file(outfile, 'w')
+    outf_failed = IOTools.open_file(P.snip(outfile, '.tsv.gz') \
+                                    + '_failed.tsv.gz', 'w')
     
     outf.write('\t'.join(["assembly_accession",
                           "bioproject",
@@ -129,14 +132,20 @@ def fetchAccessions(infile, outfile):
         genome_id = os.path.basename(row['ftp_path'])
         genome_id = genome_id + '_genomic.fna.gz'
         ftp_path = row['ftp_path'] + '/' + genome_id
-       
-        outf.write('\t'.join(map(str, [row["assembly_accession"],
+
+        line_out = '\t'.join(map(str, [row["assembly_accession"],
                                        row["bioproject"],
                                        row["biosample"],
                                        row["taxid"],
                                        row["species_taxid"],
                                        row["organism_name"],
-                                       ftp_path])) + '\n')
+                                       ftp_path])) + '\n'
+
+        # There are entries with 'na' in ftp_path
+        if not ftp_path.startswith('http'):
+            outf_failed.write(line_out)
+        else:
+            outf.write(line_out)
     outf.close()
 
 
@@ -159,7 +168,7 @@ def fetchTaxonomy(infile, outfile):
                  "  --header-out"
                  "  --log %(outfile)s.log |"
                  " gzip > %(outfile)s")
-    P.run(statement, to_cluster=False)
+    P.run(statement)
 
 
 @transform(fetchTaxonomy, suffix('.tsv.gz'), '.load')
@@ -183,7 +192,7 @@ def loadTaxonomy(infile, outfile):
            regex('(.+).tsv.gz'),
            r'ncbi_assemblies.dir/\1_*.tsv.gz')
 def splitTaxonAccessions(infile, outfiles):
-    '''Split the download list into groups of 100 for download'''
+    '''Split the download list into groups of 10 for download'''
 
     # Handle the number of accessions appropriately when chunking files
     l = len(str(sum(1 for l in IOTools.open_file(infile))))
@@ -194,7 +203,7 @@ def splitTaxonAccessions(infile, outfiles):
     for n, line in enumerate(IOTools.open_file(infile)):
         if n == 0:
             continue
-        if n % 100 == 0:
+        if n % 10 == 0:
             outf.close()
             outf = IOTools.open_file(outf_stub + '_' + str(n).zfill(l) + '.tsv.gz',
                                     'w') 
@@ -216,6 +225,7 @@ def fetchGenomeAssemblyAndAnnotations(infile, outfiles):
     for genome in IOTools.open_file(infile):
         genome_path = genome.split().pop()
         genome_path = re.sub('ftp', 'rsync', genome_path)
+        genome_path = re.sub('https', 'rsync', genome_path)
         gff_path = P.snip(genome_path, '.fna.gz') + '.gff.gz'
 
         statement = (" rsync --copy-links --quiet"
@@ -224,9 +234,26 @@ def fetchGenomeAssemblyAndAnnotations(infile, outfiles):
                      " rsync --copy-links --quiet"
                      "  %(gff_path)s"
                      "  %(outdir)s")
-        P.run()
+        P.run(statement)
 
 
+###############################################################################
+# Extract and optionally extended 16S genes from microbial genomes. 
+###############################################################################
+@transform(fetchGenomeAssemblyAndAnnotations, suffix('.fna.gz'), '.fasta')
+def indexGenomeFastas(infile, outfile):
+    '''Index each genome fasta file'''
+
+    indexed_fasta = P.snip(infile, '.fna.gz')
+    statement = ("cgat index_fasta"
+                 " --log=%(indexed_fasta)s.log"
+                 " %(indexed_fasta)s"
+                 " %(infile)s")
+    P.run(statement)
+
+@follows(
+
+    
 ###############################################################################
 # Generic pipeline tasks
 ###############################################################################
