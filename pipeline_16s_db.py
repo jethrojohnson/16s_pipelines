@@ -251,7 +251,41 @@ def indexGenomeFastas(infile, outfile):
                  " %(infile)s")
     P.run(statement)
 
-@follows(
+
+@follows(mkdir('ncbi_16s_genes.dir'))
+@transform(indexGenomeFastas,
+           regex('.+/(.+)_genomic.fasta'),
+           r'ncbi_16s_genes.dir/\1_16s_genes.fasta.gz')
+def fetch16Sgenes(infile, outfile):
+    '''Fetch fasta sequences for 16S genes annotated in gff'''
+
+    in_gff = P.snip(infile, '.fasta') + '.gff.gz'
+
+    # There are some assemblies with no 16S gene annotations
+    matched = False
+    annotation = re.compile(PARAMS['search_regex'], re.IGNORECASE)
+    for line in IOTools.open_file(in_gff):
+        if annotation.search(line):
+            matched = True
+            break
+
+    if matched:
+        statement = ("zcat %(in_gff)s |"
+                     " grep -i '%(search_regex)s' |"
+                     " cgat gff2gff"
+                     "  --genome-file=%(infile)s"
+                     "  --method=add-flank"
+                     "  --flank-method=extend"
+                     "  --extension-upstream=%(slop_upstream)s"
+                     "  --extension-downstream=%(slop_downstream)s"
+                     "  --log=%(outfile)s.log |"
+                     " cgat gff2fasta"
+                     "  --genome-file=%(infile)s"
+                     "  --log=%(outfile)s.log |"
+                     " gzip > %(outfile)s")        
+        P.run(statement)
+    else:
+        IOTools.open_file(outfile, 'w').close()
 
     
 ###############################################################################
