@@ -18,9 +18,12 @@ version: 0.1
 # The full version, including alpha/beta/rc tags.
 release: 0.1
 
+# Number of jobs to limit to for local pipeline steps
+local_n: 8
+
 database: csvdb
 
-mbscriptsdir: /gpfs3/well/johnson/users/ovz380/devel/scripts/microbiome_scripts
+mbscriptsdir: /gfs/devel/jjohnson/microbiome_scripts/
 
 ################################################################
 # Location of input files and databases
@@ -33,4 +36,29 @@ location:
 # Criteria for selecting genomes to download 
 # This will be appended to SQL statement following WHERE
 genomes:
-    selection: refseq_category=='reference genome' OR refseq_category=='representative genome' 
+    selection: refseq_category=='reference genome' OR refseq_category=='representative genome'
+
+################################################################
+# Criteria for selecting target regions based on gff annotations
+# see https://ftp.ncbi.nlm.nih.gov/genomes/README_GFF3.txt
+
+target:
+    # If 'genome' target regions will be extracted from genome assembly,
+    # if 'rna', they will be extacted from feature file *_rna_from_genomic.fna.gz
+    from: genome
+  
+    # $2 has annotation source. A comma separated list of sources to consider
+    source: cmsearch,RefSeq
+
+    # $3. A comma separated list of features to consider
+    feature: rRNA,gene,sequence_feature
+
+    attribute: 16S
+        
+    # Criteria for optionally extending target gene regions
+    slop_up: 0
+
+    slop_down: 0
+
+    # Criteria for selecting rna features directly from fasta file
+    regex: product=16S ribosomal RNA
